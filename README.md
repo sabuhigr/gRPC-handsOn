@@ -33,20 +33,29 @@ service NewsService {
   rpc GetNews(GetNewsRequest) returns (GetNewsResponse);
   rpc GetAll(google.protobuf.Empty) returns (stream GetNewsResponse);
 }
+```
 
 ### Install Tools
+```
 make install-tools
+```
 
 ### Generate Protobuf Code
+```
 make generate-proto
+```
 
 ### Lint 
+```
 make lint
+```
 
 
 
 ### Authentication
-All requests must includes authorization
+All requests have authentication.
+- On server-side there is interceptor for validation token.
+- On client-side, authorization is added to context that it passes to server.
 
 
 ### Error Handling
