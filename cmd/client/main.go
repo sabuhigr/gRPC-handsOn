@@ -6,7 +6,9 @@ import (
 	"io"
 	"time"
 
+	"github.com/google/uuid"
 	newsv1 "github.com/sabuhigr/grpc-demo/api/news/v1"
+	"github.com/sabuhigr/grpc-demo/types"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
@@ -14,6 +16,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -37,6 +40,14 @@ func myUnaryInterceptor(
 }
 
 func main() {
+	md := metadata.New(map[string]string{
+		"authorization": types.Static_token,
+	})
+
+	//context with 10 second timeout
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	customctx := metadata.NewOutgoingContext(ctx, md)
+
 	conn, err := grpc.NewClient(
 		"127.0.0.1:8080",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -68,8 +79,8 @@ func main() {
 
 	log.Info("Starting to bulk creating news")
 	for i := range 5 {
-		_, err := client.CreateNews(context.Background(), &newsv1.CreateNewsRequest{
-			// Id:      uuid.New().String(),
+		_, err := client.CreateNews(customctx, &newsv1.CreateNewsRequest{
+			Id:      uuid.New().String(),
 			Author:  fmt.Sprintf("Test Author %v", i),
 			Title:   "Test",
 			Summary: "Test",
@@ -113,7 +124,7 @@ func main() {
 
 	log.Info("Starting to get all news")
 
-	allnewsRes, err := client.GetAll(context.Background(), &emptypb.Empty{})
+	allnewsRes, err := client.GetAll(customctx, &emptypb.Empty{})
 	if err != nil {
 		if status.Code(err) != codes.InvalidArgument {
 			log.WithFields(log.Fields{
