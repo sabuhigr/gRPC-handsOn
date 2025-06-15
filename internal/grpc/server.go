@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -23,6 +24,7 @@ func init() {
 type NewsStorer interface {
 	Create(news *memstore.News) *memstore.News
 	Get(id uuid.UUID) *memstore.News
+	GetAll() []*memstore.News
 }
 
 // Server gRPC server.
@@ -88,6 +90,24 @@ func (s *Server) GetNews(context context.Context, in *newsv1.GetNewsRequest) (*n
 		},
 	).Infof("News got from memstore successfully!")
 	return toGetNewsResponse(news), nil
+}
+
+func (s *Server) GetAll(in *emptypb.Empty, stream newsv1.NewsService_GetAllServer) error {
+	log := log.WithFields(
+		log.Fields{
+			"request_data": in,
+			"endpoint":     "GetAll",
+		},
+	)
+
+	log.Debugf("Received request from client")
+	newsList := s.store.GetAll()
+	for _, news := range newsList {
+		if err := stream.Send(toGetNewsResponse(news)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func parseAndValidate(in *newsv1.CreateNewsRequest) (n *memstore.News, errs error) {
