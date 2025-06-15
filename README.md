@@ -1,6 +1,6 @@
 # News gRPC API
 
-A modern, production-ready gRPC API for managing news articles, built in Go.  
+gRPC API for managing news articles, built in Go.  
 This project demonstrates clean Go architecture, in-memory storage, robust validation, and advanced gRPC patterns including metadata, interceptors, and error details.
 
 ---
