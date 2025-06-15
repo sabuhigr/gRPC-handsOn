@@ -3,14 +3,17 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	newsv1 "github.com/sabuhigr/grpc-demo/api/news/v1"
 	"github.com/sabuhigr/grpc-demo/internal/memstore"
+	"github.com/sabuhigr/grpc-demo/types"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -40,6 +43,19 @@ func NewServer(store NewsStorer) *Server {
 	}
 }
 
+func (s *Server) ErrorWithDetails(code codes.Code, errDetails types.ErrDetails) error {
+	st := status.Newf(code, fmt.Sprintf("something went wrong: %v", errDetails.Message))
+	v := &errdetails.PreconditionFailure_Violation{ //errDetails
+		Type:        errDetails.Type,
+		Subject:     errDetails.Message,
+		Description: errDetails.Description,
+	}
+	br := &errdetails.PreconditionFailure{}
+	br.Violations = append(br.Violations, v)
+	st, _ = st.WithDetails(br)
+	return st.Err()
+}
+
 func (s *Server) CreateNews(context context.Context, in *newsv1.CreateNewsRequest) (*newsv1.CreateNewsResponse, error) {
 	log := log.WithFields(
 		log.Fields{
@@ -50,7 +66,7 @@ func (s *Server) CreateNews(context context.Context, in *newsv1.CreateNewsReques
 	log.Debugf("Received request from client")
 	parsedNews, err := parseAndValidate(in)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, s.ErrorWithDetails(codes.InvalidArgument, types.ErrDetails{Code: 400, Message: err.Error(), Type: "invalid_argument", Description: "invalid argument"})
 	} else {
 		createdNews := s.store.Create(parsedNews)
 		log.WithFields(
@@ -72,7 +88,7 @@ func (s *Server) GetNews(context context.Context, in *newsv1.GetNewsRequest) (*n
 	log.Debugf("Received request from client")
 	parseUUID, err := uuid.Parse(in.Id)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, s.ErrorWithDetails(codes.InvalidArgument, types.ErrDetails{Code: 400, Message: err.Error(), Type: "invalid_UUID", Description: "invalid UUID"})
 	}
 
 	log.Debugf("uuid: %v", parseUUID)
@@ -80,7 +96,7 @@ func (s *Server) GetNews(context context.Context, in *newsv1.GetNewsRequest) (*n
 	news := s.store.Get(parseUUID)
 	log.Debugf("news: %v", news)
 	if news == nil {
-		return nil, status.Error(codes.NotFound, "news not found")
+		return nil, s.ErrorWithDetails(codes.NotFound, types.ErrDetails{Code: 500, Message: err.Error(), Type: "not_found", Description: "Not found"})
 	}
 
 	log.WithFields(
