@@ -1,0 +1,12 @@
+syntax = 'proto3';
+
+option go_package = "github.com/sabuhigr/grpc-demo/api/news/v1;newsv1";
+
+package news.v1;
+
+import "news/v1/news.proto";
+
+service NewsService {
+  rpc CreateNews(CreateNewsRequest) returns (CreateNewsResponse);
+  rpc GetNews(GetNewsRequest) returns (GetNewsResponse);
+}
